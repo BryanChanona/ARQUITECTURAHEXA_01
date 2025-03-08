@@ -17,9 +17,9 @@ var (
 
 func Init(){
 	db, err := helpers.ConnectDB()
-	if err != nil {
-		log.Fatalf("Error al conectar a la base de datos: %v", err)
-	}
+		if err != nil {
+			log.Fatalf("Error al conectar a la base de datos: %v", err)
+		}
 	mySQL =*infraestructure.NewMySQL(db)
 	rabbit := adapters.NewRabbit() // Crear la conexión Rabbit
 	eventService = service.NewEvent(rabbit) // Inicializar el servicio Event con Rabbit
