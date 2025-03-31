@@ -25,5 +25,5 @@ func main(){
 	userRoutesResource.UserRouter(r)
 	bookRoutesResource.BookRouter(r)
 
-	r.Run() 
+	r.Run(":8083") 
 }

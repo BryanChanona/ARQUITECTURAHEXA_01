@@ -10,7 +10,7 @@ import (
 	"github.com/rabbitmq/amqp091-go"
 )
 
-type 	Rabbit struct {
+type Rabbit struct {
 	conn *helpers.RabbitMQConn
 }
 
@@ -29,7 +29,7 @@ func (rabbit *Rabbit) PublishEvent(book domain.Book) error {
 	// Declaración del exchange (esto solo debería hacerse una vez)
 	err := rabbit.conn.Ch.ExchangeDeclare(
 		"logs",   // Nombre del exchange
-		"fanout", // Tipo de exchange
+		"fanout", // Tipo de exchange (fanout enviará el mensaje a todas las colas vinculadas)
 		true,     // Durable
 		false,    // Auto-deleted
 		false,    // Internal
@@ -38,6 +38,33 @@ func (rabbit *Rabbit) PublishEvent(book domain.Book) error {
 	)
 	if err != nil {
 		log.Printf("Error al declarar el exchange: %v", err)
+		return err
+	}
+
+	// Declaración de la cola (esto solo debería hacerse una vez)
+	_, err = rabbit.conn.Ch.QueueDeclare(
+		"books_queue", // Nombre de la cola
+		true,          // Durable
+		false,         // Auto-delete
+		false,         // Exclusive
+		false,         // No-wait
+		nil,           // Arguments
+	)
+	if err != nil {
+		log.Printf("Error al declarar la cola: %v", err)
+		return err
+	}
+
+	// Vincular la cola al exchange
+	err = rabbit.conn.Ch.QueueBind(
+		"books_queue", // Nombre de la cola
+		"",            // Routing key (vacío para fanout)
+		"logs",        // Nombre del exchange
+		false,         // No-wait
+		nil,           // Arguments
+	)
+	if err != nil {
+		log.Printf("Error al vincular la cola al exchange: %v", err)
 		return err
 	}
 
@@ -52,10 +79,10 @@ func (rabbit *Rabbit) PublishEvent(book domain.Book) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Publicar el mensaje
+	// Publicar el mensaje al exchange (será enviado a todas las colas vinculadas)
 	err = rabbit.conn.Ch.PublishWithContext(ctx,
 		"logs", // Exchange
-		"",     // Routing key (vacío en fanout)
+		"",     // Routing key (vacío para fanout)
 		false,  // Mandatory
 		false,  // Immediate
 		amqp091.Publishing{
@@ -67,6 +94,6 @@ func (rabbit *Rabbit) PublishEvent(book domain.Book) error {
 		return err
 	}
 
-	log.Printf(" [x] Mensaje enviado: %s", body)
+	log.Printf(" [x] Mensaje enviado al exchange, que será entregado a la cola: %s", body)
 	return nil
 }
